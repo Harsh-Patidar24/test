@@ -1,5 +1,5 @@
 // src/components/AddUserForm.tsx
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { AddUserFormProps, User } from "../../Types/type";
 
 function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
@@ -51,4 +51,4 @@ function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
   );
 }
 
-export default AddUserForm;
+export default memo(AddUserForm);

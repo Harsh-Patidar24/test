@@ -1,7 +1,8 @@
 // src/components/Modal.jsx
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import Category from "./Category";
 import { ModalProps } from '../Types/type';
+
 
 // type ModalProps = {
 //   user: {id: string, name:string, age:number},
@@ -76,4 +77,4 @@ function Modal({ user, onClose, onDelete, onUpdate }: ModalProps) {
   );
 }
 
-export default Modal;
+export default memo(Modal);

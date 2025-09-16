@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import './App.css'
-import UserTable from './components/UserTable'
 // import users from './components/data'
+import UserTable from './components/UserTable'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 const users = [
   { id: "1", name: "Aarav", age: 57 },
   { id: "2", name: "Meera", age: 12 },
@@ -19,7 +20,9 @@ function App() {
 
   return (
       <>
+      
         <UserTable data={users}/>
+
       </>
   )
 }
