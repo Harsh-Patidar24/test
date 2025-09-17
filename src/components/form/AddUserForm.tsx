@@ -3,26 +3,34 @@ import React, { useState, memo } from "react";
 import { AddUserFormProps, User } from "../../Types/type";
 
 function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
-  const [name, setName] = useState<string>("");
+  const [firstname, setFirstName] = useState<string>("");
+  const [lastname, setLastName] = useState<string>("");
   const [age, setAge] = useState<string>("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const trimmed = name.trim();
+    const firstNameTrimmed = firstname.trim();
+    const lastNameTrimmed = lastname.trim();
+    const fullName = `${firstNameTrimmed} ${lastNameTrimmed}`.trim();
     const ageNum = Number(age);
 
-    if (!trimmed) {
-      alert("Name is required");
-      return;
-    }
+    // if (!) {
+    //   alert("Name is required");
+    //   return;
+    // }
     if (!Number.isInteger(ageNum) || ageNum < 0) {
       alert("Enter a valid non-negative age");
       return;
     }
 
-    onAdd({ id: '', name: trimmed, age: ageNum });
-    setName("");
+    onAdd({
+      id: "",   
+      name: firstNameTrimmed,   
+      lastName: lastNameTrimmed,
+      age: ageNum,   
+    });   
+    setFirstName("");
     setAge("");
   };
 
@@ -30,11 +38,16 @@ function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
     <form className="add-user-form" onSubmit={handleSubmit}>
       <input
         type="text"
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
+        placeholder="First Name"
+        value={firstname}
+        onChange={(e) => setFirstName(e.target.value)}
       />
-
+      <input
+        type="text"
+        placeholder="Last Name"
+        value={lastname}
+        onChange={(e) => setLastName(e.target.value)}
+      />
       <input
         type="number"
         placeholder="Age"

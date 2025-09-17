@@ -1,6 +1,10 @@
-// import { User } from "../components/UserRow";
 
-// models 
+export type User = {
+  id: string,
+  name: string,
+  lastName: string,
+  age: number
+}
 export type ModalProps = {
   user: {id: string, name:string, age:number},
   onClose: () => void,
@@ -19,19 +23,16 @@ export type Counts = {
 };
 
 
-export type User = {
-  id: string,
-  name: string,
-  age: number
-}
 
 export type userRowProps = {
   user: User,
   onSelect: (user: User) => void,
-  index: number
+  index: number,
 };
 
 export type AddUserFormProps = {
   onAdd: (user: User) => void;   
   onCancel: () => void;         
 };
+
+// export type 

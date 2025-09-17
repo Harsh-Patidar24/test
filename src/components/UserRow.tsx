@@ -16,7 +16,7 @@ function UserRow({ user, onSelect, index }: userRowProps) {
       // color="black"
     >
       <td>{index + 1}</td>
-      <td>{user.name}</td>
+      <td>{user.name + " " + user.lastName}</td>
       <td>{user.age}</td>
       <td><Category age={user.age} /></td>
     </motion.tr>

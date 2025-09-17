@@ -5,7 +5,9 @@ import UserRow from "./UserRow";
 import AddUserForm from "./form/AddUserForm";
 import { CgAddR } from "react-icons/cg";
 import { v4 as uuidv4 } from "uuid";
+import { useNavigate } from "react-router-dom";
 import { UserTableProps, Counts, User } from "../Types/type";
+import { calculateCounts, filterUsers } from "../Utility/funcProp";
 
 // Theme Toggle Icons (you can replace these with react-icons if available)
 const SunIcon = () => (
@@ -21,7 +23,8 @@ const MoonIcon = () => (
 );
 
 function UserTable({ data }: UserTableProps) {
-  // Existing state
+  const navigate = useNavigate();
+
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem("users");
     if (saved) {
@@ -37,6 +40,8 @@ function UserTable({ data }: UserTableProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -60,10 +65,12 @@ function UserTable({ data }: UserTableProps) {
     setIsDarkMode((prevMode) => !prevMode);
   }, []);
 
-  const handleAction = useCallback((user: User) => {
-    setSelectedUser(user);
-    setShowPopup(true);
-  }, []);
+  const handleAction = useCallback(
+    (user: User) => {
+      navigate(`/profile/${user.id}`);
+    },
+    [navigate]
+  );
 
   const handleClose = useCallback(() => {
     setSelectedUser(null);
@@ -74,7 +81,7 @@ function UserTable({ data }: UserTableProps) {
     (id: string) => {
       setUsers(users.filter((user) => user.id !== id));
       handleClose();
-      // return <h1>delete was called</h1>
+      
     },
     [handleClose]
   );
@@ -88,13 +95,18 @@ function UserTable({ data }: UserTableProps) {
   );
 
   const handleAdd = useCallback(
-    ({ name, age }: { name: string; age: number }) => {
-      const newUser: User = { id: uuidv4(), name, age: Number(age) };
+    ( user: User):void => {
+      const { name, lastName, age } = user
+      const newUser: User = { id: uuidv4(), name,lastName, age: Number(age) };
       setUsers([...users, newUser]);
       setShowAddForm(false);
     },
-    []
+    [users]
   );
+
+  const handleSearch = useCallback(() => {
+    setSearchTerm(searchInput);
+  }, [searchInput]);
 
   const counts: Counts = useMemo(() => {
     return users.reduce(
@@ -110,8 +122,22 @@ function UserTable({ data }: UserTableProps) {
 
   const { childCount, youngCount, oldCount } = counts;
 
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) =>
+
+      user.name.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      user.lastName.toLowerCase().startsWith(searchTerm.toLowerCase()
+    ));
+  }, [users, searchTerm]);
+
   return (
     <div>
+      <button
+        onClick={() => navigate(+1)}
+        className="mb-4 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
+      >
+        Forword ➔
+      </button>
       <button
         className="theme-toggle"
         onClick={toggleTheme}
@@ -126,7 +152,7 @@ function UserTable({ data }: UserTableProps) {
         </span>
       </button>
 
-      {/* Existing content (unchanged) */}
+     
       <div className="header-row">
         <h2>User Table</h2>
         <button
@@ -134,16 +160,31 @@ function UserTable({ data }: UserTableProps) {
           onClick={() => setShowAddForm((s) => !s)}
           aria-label="Add user"
           title="Add user"
+          disabled={searchInput.trim() !== ""} 
+          style={{
+            opacity: searchInput.trim() !== "" ? 0.5 : 1, 
+            cursor: searchInput.trim() !== "" ? "not-allowed" : "pointer",
+          }}
         >
           <CgAddR />
         </button>
       </div>
 
-      
-
       {showAddForm && (
         <AddUserForm onAdd={handleAdd} onCancel={() => setShowAddForm(false)} />
       )}
+      <div className="search-container">
+        <input
+          type="search"
+          className="search-bar"
+          placeholder="search by name"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <button onClick={handleSearch} className="search-btn">
+          Search
+        </button>
+      </div>
 
       <table className="table">
         <thead>
@@ -155,11 +196,12 @@ function UserTable({ data }: UserTableProps) {
           </tr>
         </thead>
         <tbody>
-          {users.map((user, index) => (
+          {filteredUsers.map((user, index) => (
             <UserRow
               key={user.id}
               user={user}
               index={index}
+              // searchTerm={searchTerm}
               onSelect={handleAction}
             />
           ))}
@@ -182,14 +224,14 @@ function UserTable({ data }: UserTableProps) {
         </p>
       </div>
 
-      {showPopup && selectedUser && (
+      {/* {showPopup && selectedUser && (
         <Modal
           user={selectedUser}
           onClose={handleClose}
           onDelete={handleDelete}
           onUpdate={handleUpdate}
         />
-      )}
+      )} */}
     </div>
   );
 }
