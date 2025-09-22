@@ -1,133 +1,217 @@
+// src/pages/ProfilePage.tsx
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { getUserById } from "../Utility/funcProp";
+import { userApi } from "../api/axios";
 import { User } from "../Types/type";
-import { FaArrowLeft, FaUserCircle, FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import {
+  FaArrowLeft,
+  FaUser,
+  FaEdit,
+  FaSave,
+  FaTimes,
+  FaTrash,
+  FaUserCircle,
+} from "react-icons/fa";
+import { MdOutlineCalendarToday, MdPerson } from "react-icons/md";
 
 export default function ProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState<User[]>(
-    JSON.parse(localStorage.getItem("users") || "[]")
-  );
-
-  const user = getUserById(users, id);
-
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(user?.name || "");
-  const [editAge, setEditAge] = useState(user?.age.toString() || "");
+  const [editName, setEditName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editAge, setEditAge] = useState("");
+  const [editCategory, setEditCategory] = useState("");
 
-  if (!user)
-    return <p className="p-6 text-red-600 font-semibold">User not found</p>;
-
-  // ✅ Delete Profile
-  const handleDelete = () => {
-    const updatedUsers = users.filter((u) => u.id !== user.id);
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-    navigate("/"); // back to table
+  const getCategory = (age: number) => {
+    if (age < 18) return "Child";
+    if (age <= 60) return "Adult";
+    return "Elderly";
   };
 
-  // ✅ Save Update
-  const handleSave = () => {
-    const updatedUsers = users.map((u) =>
-      u.id === user.id ? { ...u, name: editName, age: Number(editAge) } : u
-    );
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-    setIsEditing(false);
+  // Fetch user from backend
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        if (!id) return;
+
+        const response = await userApi.getUserById(id);
+        const userData: User = response.data;
+
+        setUser(userData);
+        setEditName(userData.name);
+        setEditLastName(userData.lastName);
+        setEditAge(userData.age.toString());
+        setEditCategory(getCategory(userData.age));
+      } catch (err) {
+        console.error("Failed to fetch user:", err);
+        setError("Failed to fetch user data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [id]);
+
+  const handleDelete = async () => {
+  if (!user?._id) return;
+
+  try {
+    // Call backend delete API
+    const response = await userApi.deleteUser(user._id); // Make sure userApi.deleteUser sends DELETE to `/users/${id}`
+
+    if (response.status === 200 || response.status === 204) {
+      alert("User deleted successfully");
+      navigate("/"); // redirect after deletion
+    } else {
+      throw new Error("Failed to delete user");
+    }
+  } catch (err) {
+    console.error("Failed to delete user:", err);
+    alert("Failed to delete user");
+  }
+};
+
+
+  const handleSave = async () => {
+    if (!user?._id) return;
+
+    try {
+      const updatedUser = {
+        name: editName.trim(),
+        lastName: editLastName.trim(),
+        age: Number(editAge),
+      };
+
+      await userApi.updateUser(user._id, updatedUser);
+      setUser({ ...user, ...updatedUser });
+      setEditCategory(getCategory(Number(editAge)));
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to update user:", err);
+      alert("Failed to update user");
+    }
   };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div className="p-6 text-red-600 font-semibold">{error}</div>;
+  if (!user) return <div className="p-6 text-red-600 font-semibold">User not found</div>;
 
   return (
-    <div className="max-w-lg mx-auto p-6 bg-white rounded-xl shadow-md mt-10 border border-gray-200 relative">
-      {/* Back button top-left */}
+    <div className="user-profile">
       <button
         onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
+        className="back-button absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
       >
-        <FaArrowLeft /> Back
+        <FaArrowLeft className="icon" /> Back
       </button>
 
-      {/* Dummy Profile Picture */}
       <div className="flex flex-col items-center mb-6">
         <FaUserCircle className="text-gray-400" size={80} />
-        <h1 className="text-2xl font-bold text-gray-800 mt-2">User Profile</h1>
+        <h2 className="text-2xl font-bold text-gray-800 mt-2">User Profile</h2>
       </div>
 
       {!isEditing ? (
         <>
-          {/* Show details */}
-          <div className="space-y-2 text-gray-700">
-            <p>
-              <strong>Name:</strong> {user.name}
-            </p>
-            <p>
-              <strong>Age:</strong> {user.age}
-            </p>
+          {/* View Mode */}
+          <div className="user-details">
+            <div className="input-group">
+              <FaUser className="icon" />
+              <input type="text" value={user.name} disabled />
+            </div>
+            <div className="input-group">
+              <FaUser className="icon" />
+              <input type="text" value={user.lastName} disabled />
+            </div>
+            <div className="input-group">
+              <MdOutlineCalendarToday className="icon" />
+              <input type="number" value={user.age} disabled />
+            </div>
+            <div className="input-group">
+              <MdPerson className="icon" />
+              <input type="text" value={editCategory} disabled />
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-            >
-              <FaEdit /> Edit
+          {/* Action Buttons */}
+          <div className="button-group">
+            <button onClick={() => setIsEditing(true)} className="update-button">
+              <FaEdit className="icon" /> Edit
             </button>
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-            >
-              <FaTrash /> Delete
+            <button onClick={handleDelete} className="delete-button">
+              <FaTrash className="icon" /> Delete
             </button>
           </div>
         </>
       ) : (
         <>
-          {/* Edit form */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Name
-              </label>
+          {/* Edit Mode */}
+          <div className="user-details">
+            <div className="input-group">
+              <FaUser className="icon" />
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-blue-200"
+                placeholder="Enter Name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Age
-              </label>
+            <div className="input-group">
+              <FaUser className="icon" />
+              <input
+                type="text"
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                placeholder="Enter Last Name"
+              />
+            </div>
+            <div className="input-group">
+              <MdOutlineCalendarToday className="icon" />
               <input
                 type="number"
                 value={editAge}
-                onChange={(e) => setEditAge(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-blue-200"
+                onChange={(e) => {
+                  setEditAge(e.target.value);
+                  setEditCategory(getCategory(Number(e.target.value)));
+                }}
+                placeholder="Enter Age"
               />
+            </div>
+            <div className="input-group">
+              <MdPerson className="icon" />
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+              >
+                <option value="Child">Child</option>
+                <option value="Adult">Adult</option>
+                <option value="Elderly">Elderly</option>
+              </select>
             </div>
           </div>
 
-          {/* Save / Cancel */}
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-            >
-              <FaSave /> Save
+          {/* Save / Cancel Buttons */}
+          <div className="button-group">
+            <button onClick={handleSave} className="update-button">
+              <FaSave className="icon" /> Save
             </button>
             <button
               onClick={() => {
                 setIsEditing(false);
                 setEditName(user.name);
+                setEditLastName(user.lastName);
                 setEditAge(user.age.toString());
+                setEditCategory(getCategory(user.age));
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition"
+              className="cancel-button"
             >
-              <FaTimes /> Cancel
+              <FaTimes className="icon" /> Cancel
             </button>
           </div>
         </>

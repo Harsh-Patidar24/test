@@ -1,65 +1,111 @@
 // src/components/AddUserForm.tsx
 import React, { useState, memo } from "react";
-import { AddUserFormProps, User } from "../../Types/type";
+import { userApi } from "../../api/axios";
+import { User } from "../../Types/type";
+
+type AddUserFormProps = {
+  onAdd: (user: User) => void;
+  onCancel: () => void;
+};
 
 function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
-  const [firstname, setFirstName] = useState<string>("");
-  const [lastname, setLastName] = useState<string>("");
-  const [age, setAge] = useState<string>("");
+  const [formData, setFormData] = useState({
+    name: "",
+    lastName: "",
+    age: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const firstNameTrimmed = firstname.trim();
-    const lastNameTrimmed = lastname.trim();
-    const fullName = `${firstNameTrimmed} ${lastNameTrimmed}`.trim();
-    const ageNum = Number(age);
-
-    // if (!) {
-    //   alert("Name is required");
-    //   return;
-    // }
+    setError(null);
+    setIsSubmitting(true);
+    const ageNum = Number(formData.age);
     if (!Number.isInteger(ageNum) || ageNum < 0) {
-      alert("Enter a valid non-negative age");
+      setError("Enter a valid non-negative age");
+      setIsSubmitting(false);
       return;
     }
 
-    onAdd({
-      id: "",   
-      name: firstNameTrimmed,   
-      lastName: lastNameTrimmed,
-      age: ageNum,   
-    });   
-    setFirstName("");
-    setAge("");
+    try {
+      const response = await userApi.createUser({
+        name: formData.name.trim(),
+        lastName: formData.lastName.trim(),
+        age: ageNum,
+      });
+
+      if (response?.data) {
+        // Pass the correct data structure
+        onAdd(response.data);
+        setFormData({ name: "", lastName: "", age: "" });
+        onCancel(); // Close the form after successful addition
+      }
+    } catch (err:any) {
+      setError(err.response?.data?.message || "Failed to create user");
+      console.error("Error creating user:", err);
+    }finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <form className="add-user-form" onSubmit={handleSubmit}>
+      {error && <p className="text-red-600">{error}</p>}
+
       <input
         type="text"
+        name="name"
         placeholder="First Name"
-        value={firstname}
-        onChange={(e) => setFirstName(e.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Last Name"
-        value={lastname}
-        onChange={(e) => setLastName(e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder="Age"
-        value={age}
-        min="0"
-        onChange={(e) => setAge(e.target.value)}
+        value={formData.name}
+        onChange={handleChange}
+        required
       />
 
-      <button type="submit">Add</button>
-      <button type="button" onClick={onCancel} className="btn-secondary">
-        Cancel
-      </button>
+      <input
+        type="text"
+        name="lastName"
+        placeholder="Last Name"
+        value={formData.lastName}
+        onChange={handleChange}
+        required
+      />
+
+      <input
+        type="number"
+        name="age"
+        placeholder="Age"
+        value={formData.age}
+        min="0"
+        onChange={handleChange}
+        required
+      />
+
+      <div className="flex gap-2">
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className={isSubmitting ? 'opacity-50' : ''}
+        >
+          {isSubmitting ? 'Adding...' : 'Add'}
+        </button>
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="btn-secondary"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

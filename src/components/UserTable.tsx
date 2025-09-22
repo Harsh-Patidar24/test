@@ -4,12 +4,11 @@ import Modal from "./Modal";
 import UserRow from "./UserRow";
 import AddUserForm from "./form/AddUserForm";
 import { CgAddR } from "react-icons/cg";
-import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { UserTableProps, Counts, User } from "../Types/type";
-import { calculateCounts, filterUsers } from "../Utility/funcProp";
+import { Counts, User } from "../Types/type";
+import { userApi } from "../api/axios";
 
-// Theme Toggle Icons (you can replace these with react-icons if available)
+// Theme Toggle Icons
 const SunIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
@@ -22,32 +21,37 @@ const MoonIcon = () => (
   </svg>
 );
 
-function UserTable({ data }: UserTableProps) {
+export default function UserTable() {
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem("users");
-    if (saved) {
-      try {
-        return JSON.parse(saved) as User[];
-      } catch {
-        return data.map((user) => ({ ...user, id: uuidv4() }));
-      }
-    }
-    return data.map((user) => ({ ...user, id: uuidv4() }));
-  });
-
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [users, setUsers] = useState<User[]>([]);
+
+  // Fetch users from backend
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await userApi.getAllUsers();
+        setUsers(response.data);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+        setError("Failed to fetch users");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      return savedTheme === "dark";
-    }
+    if (savedTheme) return savedTheme === "dark";
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
@@ -57,62 +61,51 @@ function UserTable({ data }: UserTableProps) {
     localStorage.setItem("theme", theme);
   }, [isDarkMode]);
 
-  useEffect(() => {
-    localStorage.setItem("users", JSON.stringify(users));
-  }, [users]);
-
   const toggleTheme = useCallback(() => {
-    setIsDarkMode((prevMode) => !prevMode);
+    setIsDarkMode((prev) => !prev);
   }, []);
 
+  // Navigate to profile page
   const handleAction = useCallback(
-    (user: User) => {
-      navigate(`/profile/${user.id}`);
+    (userId: string) => {
+      navigate(`/profile/${userId}`);
     },
     [navigate]
   );
 
-  const handleClose = useCallback(() => {
-    setSelectedUser(null);
-    setShowPopup(false);
-  }, []);
+  const handleAdd = useCallback(async (userData: User) => {
+  try {
+    // Update the UI optimistically
+    setUsers(prev => [...prev, userData]);
+    setShowAddForm(false);
+  } catch (err) {
+    console.error("Failed to add user:", err);
+    // Revert the optimistic update if needed
+    setUsers(prev => prev.filter(u => u._id !== userData._id));
+    setError("Failed to add user");
+  }
+}, []);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      setUsers(users.filter((user) => user.id !== id));
-      handleClose();
-      
-    },
-    [handleClose]
-  );
-
-  const handleUpdate = useCallback(
-    (updatedUser: User) => {
-      setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
-      handleClose();
-    },
-    [handleClose]
-  );
-
-  const handleAdd = useCallback(
-    ( user: User):void => {
-      const { name, lastName, age } = user
-      const newUser: User = { id: uuidv4(), name,lastName, age: Number(age) };
-      setUsers([...users, newUser]);
-      setShowAddForm(false);
-    },
-    [users]
-  );
-
+  // Search
   const handleSearch = useCallback(() => {
     setSearchTerm(searchInput);
   }, [searchInput]);
 
+  // Filtered users
+  const filteredUsers = useMemo(() => {
+    return users.filter(
+      (u) =>
+        u.name.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+        u.lastName.toLowerCase().startsWith(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
+
+  // Count statistics
   const counts: Counts = useMemo(() => {
     return users.reduce(
-      (acc: Counts, user: User) => {
-        if (user.age < 18) acc.childCount++;
-        else if (user.age <= 60) acc.youngCount++;
+      (acc: Counts, u: User) => {
+        if (u.age < 18) acc.childCount++;
+        else if (u.age <= 60) acc.youngCount++;
         else acc.oldCount++;
         return acc;
       },
@@ -122,62 +115,38 @@ function UserTable({ data }: UserTableProps) {
 
   const { childCount, youngCount, oldCount } = counts;
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) =>
-
-      user.name.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
-      user.lastName.toLowerCase().startsWith(searchTerm.toLowerCase()
-    ));
-  }, [users, searchTerm]);
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div className="text-red-600 font-semibold p-6">{error}</div>;
 
   return (
     <div>
       <button
-        onClick={() => navigate(+1)}
-        className="mb-4 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
-      >
-        Forword ➔
-      </button>
-      <button
-        className="theme-toggle"
+        className="theme-toggle mb-4"
         onClick={toggleTheme}
         aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
-        title={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
       >
-        <span className="theme-toggle-icon">
-          {isDarkMode ? <SunIcon /> : <MoonIcon />}
-        </span>
-        <span className="theme-toggle-text">
-          {isDarkMode ? "Light" : "Dark"}
-        </span>
+        {isDarkMode ? <SunIcon /> : <MoonIcon />}
+        {isDarkMode ? "Light" : "Dark"}
       </button>
 
-     
       <div className="header-row">
         <h2>User Table</h2>
         <button
           className="add-btn"
           onClick={() => setShowAddForm((s) => !s)}
-          aria-label="Add user"
-          title="Add user"
-          disabled={searchInput.trim() !== ""} 
-          style={{
-            opacity: searchInput.trim() !== "" ? 0.5 : 1, 
-            cursor: searchInput.trim() !== "" ? "not-allowed" : "pointer",
-          }}
+          disabled={searchInput.trim() !== ""}
         >
           <CgAddR />
         </button>
       </div>
 
-      {showAddForm && (
-        <AddUserForm onAdd={handleAdd} onCancel={() => setShowAddForm(false)} />
-      )}
+      {showAddForm && <AddUserForm onAdd={handleAdd} onCancel={() => setShowAddForm(false)} />}
+
       <div className="search-container">
         <input
           type="search"
           className="search-bar"
-          placeholder="search by name"
+          placeholder="Search by name"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
         />
@@ -197,13 +166,7 @@ function UserTable({ data }: UserTableProps) {
         </thead>
         <tbody>
           {filteredUsers.map((user, index) => (
-            <UserRow
-              key={user.id}
-              user={user}
-              index={index}
-              // searchTerm={searchTerm}
-              onSelect={handleAction}
-            />
+            <UserRow key={user._id} user={user} index={index} onSelect={() => handleAction(user._id)} />
           ))}
         </tbody>
       </table>
@@ -215,25 +178,14 @@ function UserTable({ data }: UserTableProps) {
           <span>{childCount}</span>
         </p>
         <p>
-          <span>Young</span>
+          <span>Adult</span>
           <span>{youngCount}</span>
         </p>
         <p>
-          <span>Old</span>
+          <span>Elderly</span>
           <span>{oldCount}</span>
         </p>
       </div>
-
-      {/* {showPopup && selectedUser && (
-        <Modal
-          user={selectedUser}
-          onClose={handleClose}
-          onDelete={handleDelete}
-          onUpdate={handleUpdate}
-        />
-      )} */}
     </div>
   );
 }
-
-export default UserTable;

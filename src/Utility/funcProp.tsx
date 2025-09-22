@@ -27,5 +27,5 @@ export function filterUsers(users: User[], search: string): User[] {
 // Get user by ID (for profile page)
 export function getUserById(users: User[], id: string | undefined): User | null {
   if (!id) return null
-  return users.find((u) => u.id === id) || null
+  return users.find((u) => u._id === id) || null
 }

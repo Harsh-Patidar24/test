@@ -1,6 +1,6 @@
 
 export type User = {
-  id: string,
+  _id: string,
   name: string,
   lastName: string,
   age: number
@@ -12,9 +12,7 @@ export type ModalProps = {
   onUpdate: (user: {id: string, name:string, age:number}) => void
 }
 
-export type UserTableProps = {
-  data: User[];
-};
+
 
 export type Counts = {
   childCount: number;
