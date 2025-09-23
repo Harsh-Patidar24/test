@@ -29,6 +29,7 @@ function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    
     const ageNum = Number(formData.age);
     if (!Number.isInteger(ageNum) || ageNum < 0) {
       setError("Enter a valid non-negative age");
@@ -44,15 +45,22 @@ function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
       });
 
       if (response?.data) {
-        // Pass the correct data structure
+        // Pass the user data to parent component
         onAdd(response.data);
+        // Reset form
         setFormData({ name: "", lastName: "", age: "" });
-        onCancel(); // Close the form after successful addition
+        // Note: Don't call onCancel here, let the parent handle closing the form
+      } else {
+        setError("Failed to create user - no data returned");
       }
-    } catch (err:any) {
-      setError(err.response?.data?.message || "Failed to create user");
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
+                          err.message || 
+                          "Failed to create user";
+      setError(errorMessage);
       console.error("Error creating user:", err);
-    }finally {
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -90,16 +98,16 @@ function AddUserForm({ onAdd, onCancel }: AddUserFormProps) {
       />
 
       <div className="flex gap-2">
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={isSubmitting}
           className={isSubmitting ? 'opacity-50' : ''}
         >
           {isSubmitting ? 'Adding...' : 'Add'}
         </button>
-        <button 
-          type="button" 
-          onClick={onCancel} 
+        <button
+          type="button"
+          onClick={onCancel}
           className="btn-secondary"
           disabled={isSubmitting}
         >

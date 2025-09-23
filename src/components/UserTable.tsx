@@ -32,13 +32,22 @@ export default function UserTable() {
 
   const [users, setUsers] = useState<User[]>([]);
 
-  // Fetch users from backend
+  // Updated useEffect for fetching users with data validation
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
         const response = await userApi.getAllUsers();
-        setUsers(response.data);
+
+        // Validate and clean the data
+        const validatedUsers = response.data.map((user: any) => ({
+          ...user,
+          name: user.name || "", // Ensure name is never null/undefined
+          lastName: user.lastName || "", // Ensure lastName is never null/undefined
+          age: Number(user.age) || 0, // Ensure age is a valid number
+        }));
+
+        setUsers(validatedUsers);
       } catch (err) {
         console.error("Failed to fetch users:", err);
         setError("Failed to fetch users");
@@ -74,30 +83,35 @@ export default function UserTable() {
   );
 
   const handleAdd = useCallback(async (userData: User) => {
-  try {
-    // Update the UI optimistically
-    setUsers(prev => [...prev, userData]);
-    setShowAddForm(false);
-  } catch (err) {
-    console.error("Failed to add user:", err);
-    // Revert the optimistic update if needed
-    setUsers(prev => prev.filter(u => u._id !== userData._id));
-    setError("Failed to add user");
-  }
-}, []);
+    try {
+      setUsers((prev) => [...prev, userData]);
+      setShowAddForm(false);
+      setError(null); // Clear any previous errors
+    } catch (err) {
+      console.error("Failed to add user:", err);
+      setError("Failed to add user");
+    }
+  }, []);
 
   // Search
   const handleSearch = useCallback(() => {
     setSearchTerm(searchInput);
   }, [searchInput]);
 
-  // Filtered users
+  // Filtered users with safer checks
   const filteredUsers = useMemo(() => {
-    return users.filter(
-      (u) =>
-        u.name.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
-        u.lastName.toLowerCase().startsWith(searchTerm.toLowerCase())
-    );
+    if (!searchTerm.trim()) return users;
+
+    const searchLower = searchTerm.toLowerCase();
+
+    return users.filter((u) => {
+      const firstName = typeof u.name === "string" ? u.name.toLowerCase() : "";
+      const lastName =
+        typeof u.lastName === "string" ? u.lastName.toLowerCase() : "";
+      return (
+        firstName.startsWith(searchLower) || lastName.startsWith(searchLower)
+      );
+    });
   }, [users, searchTerm]);
 
   // Count statistics
@@ -116,7 +130,8 @@ export default function UserTable() {
   const { childCount, youngCount, oldCount } = counts;
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div className="text-red-600 font-semibold p-6">{error}</div>;
+  if (error)
+    return <div className="text-red-600 font-semibold p-6">{error}</div>;
 
   return (
     <div>
@@ -140,7 +155,9 @@ export default function UserTable() {
         </button>
       </div>
 
-      {showAddForm && <AddUserForm onAdd={handleAdd} onCancel={() => setShowAddForm(false)} />}
+      {showAddForm && (
+        <AddUserForm onAdd={handleAdd} onCancel={() => setShowAddForm(false)} />
+      )}
 
       <div className="search-container">
         <input
@@ -166,7 +183,12 @@ export default function UserTable() {
         </thead>
         <tbody>
           {filteredUsers.map((user, index) => (
-            <UserRow key={user._id} user={user} index={index} onSelect={() => handleAction(user._id)} />
+            <UserRow
+              key={user._id ? `${user._id}-${index}` : `user-${index}`}
+              user={user}
+              index={index}
+              onSelect={() => handleAction(user._id)}
+            />
           ))}
         </tbody>
       </table>
